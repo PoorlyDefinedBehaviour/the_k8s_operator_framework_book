@@ -1,0 +1,9 @@
+apiVersion: v1alpha1
+kind: NginxOperator
+metadata:
+  name: instance
+spec:
+  port: 80
+  replicas: 1
+status:
+  ...

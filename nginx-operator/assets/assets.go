@@ -22,7 +22,7 @@ func init() {
 	}
 }
 
-func GetDpeploymentFromFile(name string) *appsv1.Deployment {
+func GetDeploymentFromFile(name string) *appsv1.Deployment {
 	deploymentBytes, err := manifests.ReadFile(name)
 	if err != nil {
 		panic(err)

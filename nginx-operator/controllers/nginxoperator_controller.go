@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -26,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	operatorv1alpha1 "github.com/example/nginx-operator/api/v1alpha1"
+	"github.com/example/nginx-operator/assets"
 )
 
 // NginxOperatorReconciler reconciles a NginxOperator object
@@ -37,6 +39,7 @@ type NginxOperatorReconciler struct {
 //+kubebuilder:rbac:groups=operator.example.com,resources=nginxoperators,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=operator.example.com,resources=nginxoperators/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=operator.example.com,resources=nginxoperators/finalizers,verbs=update
+//+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -62,6 +65,30 @@ func (r *NginxOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 	}
 
+	deployment := &appsv1.Deployment{}
+	if err := r.Get(ctx, req.NamespacedName, deployment); err != nil {
+		if !errors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+
+		deployment.Namespace = req.Namespace
+		deployment.Name = req.Name
+		deployment = assets.GetDeploymentFromFile("manifests/nginx_deployment.yaml")
+	}
+
+	if operatorCustomResource.Spec.Replicas != nil {
+		deployment.Spec.Replicas = operatorCustomResource.Spec.Replicas
+	}
+
+	if operatorCustomResource.Spec.Port != nil {
+		deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort =
+			*operatorCustomResource.Spec.Port
+	}
+
+	ctrl.CreateOrUpdate(ctx, r.Client, deployment, func() error {
+		return ctrl.SetControllerReference(&operatorCustomResource, deployment, r.Scheme)
+	})
+
 	return ctrl.Result{}, nil
 }
 
@@ -69,5 +96,6 @@ func (r *NginxOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 func (r *NginxOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&operatorv1alpha1.NginxOperator{}).
+		Owns(&appsv1.Deployment{}).
 		Complete(r)
 }

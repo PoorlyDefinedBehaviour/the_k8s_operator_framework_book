@@ -1,0 +1,26 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: myoperator.operator.example.com
+spec:
+  group: operator.example.com
+  names:
+    kind: MyOperator
+    listKind: MyOperatorList
+    plural: myoperators
+    singular: myoperator
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      schema: OpenAPIV3Schema:
+        ...
+      served: true
+      storage: true
+      subresources:
+        status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

@@ -28,8 +28,15 @@ type NginxOperatorSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of NginxOperator. Edit nginxoperator_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Port is the port number to expose on the nginx Pod.
+	Port *int32 `json:"port,omitempty"`
+
+	// Replicas is the number of deployment replicas.
+	Replicas *int32 `json:"replicas,omitempty"`
+
+	// ForceRedeploy is any string, modifying this field
+	// instructs the Operator to redeploy the operand.
+	ForceRedeploy string `json:"forceRedeploy,omitempty"`
 }
 
 // NginxOperatorStatus defines the observed state of NginxOperator

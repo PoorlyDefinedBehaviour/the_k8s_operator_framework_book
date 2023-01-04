@@ -1,0 +1,10 @@
+apiVersion: operators.coreos.com/v1
+kind: OperatorCondition
+metadata:
+  name: sample-operator
+  namespace: operator-ns
+spec:
+  overrides:
+    - type: Upgradeable
+      status: True
+      reason: "OperatorIsStable"

@@ -34,6 +34,10 @@ import (
 	operatorv1alpha1 "github.com/example/nginx-operator/api/v1alpha1"
 	"github.com/example/nginx-operator/assets"
 	"github.com/hashicorp/go-multierror"
+	"github.com/pkg/errors"
+
+	apiv2 "github.com/operator-framework/api/pkg/operators/v2"
+	"github.com/operator-framework/operator-lib/conditions"
 )
 
 // NginxOperatorReconciler reconciles a NginxOperator object
@@ -58,6 +62,18 @@ type NginxOperatorReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
 func (r *NginxOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
+
+	condition, err := conditions.InClusterFactory{Client: r.Client}.
+		NewCondition(apiv2.ConditionType(apiv2.Upgradeable))
+	if err != nil {
+		return ctrl.Result{}, errors.WithStack(err)
+	}
+
+	if err := condition.Set(ctx, metav1.ConditionTrue,
+		conditions.WithReason("OperatorUpgradeable"),
+		conditions.WithMessage("The operator is upgradeable")); err != nil {
+		return ctrl.Result{}, errors.WithStack(err)
+	}
 
 	operatorCustomResource := operatorv1alpha1.NginxOperator{}
 

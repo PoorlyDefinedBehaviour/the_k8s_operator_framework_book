@@ -18,9 +18,14 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -28,6 +33,7 @@ import (
 
 	operatorv1alpha1 "github.com/example/nginx-operator/api/v1alpha1"
 	"github.com/example/nginx-operator/assets"
+	"github.com/hashicorp/go-multierror"
 )
 
 // NginxOperatorReconciler reconciles a NginxOperator object
@@ -56,19 +62,34 @@ func (r *NginxOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	operatorCustomResource := operatorv1alpha1.NginxOperator{}
 
 	if err := r.Get(ctx, req.NamespacedName, &operatorCustomResource); err != nil {
-		if errors.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
 			logger.Info("operator resource object not found")
 			return ctrl.Result{}, nil
 		} else {
 			logger.Error(err, "error getting operator resource object")
-			return ctrl.Result{}, err
+			meta.SetStatusCondition(&operatorCustomResource.Status.Conditions, metav1.Condition{
+				Type:               "OperatorDegraded",
+				Status:             metav1.ConditionTrue,
+				Reason:             "OperatorResourceNotAvailable",
+				LastTransitionTime: metav1.NewTime(time.Now()),
+				Message:            fmt.Sprintf("unable to get operator custom resource: %s", err.Error()),
+			})
+			return ctrl.Result{}, multierror.Append(err, r.Status().Update(ctx, &operatorCustomResource))
 		}
 	}
 
 	deployment := &appsv1.Deployment{}
 	if err := r.Get(ctx, req.NamespacedName, deployment); err != nil {
-		if !errors.IsNotFound(err) {
-			return ctrl.Result{}, nil
+		if !k8serrors.IsNotFound(err) {
+			logger.Error(err, "error getting existing nginx deployment")
+			meta.SetStatusCondition(&operatorCustomResource.Status.Conditions, metav1.Condition{
+				Type:               "OperatorDegraded",
+				Status:             metav1.ConditionTrue,
+				Reason:             "OperandDeploymentNotAvailable",
+				LastTransitionTime: metav1.NewTime(time.Now()),
+				Message:            fmt.Sprintf("unable to get existing nginx deployment: %s", err.Error()),
+			})
+			return ctrl.Result{}, multierror.Append(err, r.Status().Update(ctx, &operatorCustomResource))
 		}
 
 		deployment.Namespace = req.Namespace
@@ -88,10 +109,28 @@ func (r *NginxOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	result, err := ctrl.CreateOrUpdate(ctx, r.Client, deployment, func() error {
 		return ctrl.SetControllerReference(&operatorCustomResource, deployment, r.Scheme)
 	})
+	if err != nil {
+		logger.Error(err, "error creating or updating deployment")
+		meta.SetStatusCondition(&operatorCustomResource.Status.Conditions, metav1.Condition{
+			Type:               "OperatorDegraded",
+			Status:             metav1.ConditionTrue,
+			Reason:             "OperandDeploymentNotAvailable",
+			LastTransitionTime: metav1.NewTime(time.Now()),
+			Message:            fmt.Sprintf("unable to update operand deployment: %s", err.Error()),
+		})
+		return ctrl.Result{}, multierror.Append(err, r.Status().Update(ctx, &operatorCustomResource))
+	}
 
-	logger.Info("controller create or updated", "result", result)
+	logger.Info("controller created or updated", "result", result)
+	meta.SetStatusCondition(&operatorCustomResource.Status.Conditions, metav1.Condition{
+		Type:               "OperatorDegraded",
+		Status:             metav1.ConditionFalse,
+		Reason:             "OperatorSucceeded",
+		LastTransitionTime: metav1.NewTime(time.Now()),
+		Message:            "operator successfully reconciling",
+	})
 
-	return ctrl.Result{}, err
+	return ctrl.Result{}, r.Status().Update(ctx, &operatorCustomResource)
 }
 
 // SetupWithManager sets up the controller with the Manager.

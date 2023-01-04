@@ -8,3 +8,11 @@ spec:
     - type: Upgradeable
       status: True
       reason: "OperatorIsStable"
+      message: "Forcing an upgrade to bypass bug state"
+status:
+  conditions:
+    - type: Upgradeable
+      status: False
+      reason: "OperatorBusy"
+      message: "Operator is currently busy with a critical task"
+      lastTransitionTime: "2022-01-19T12:00:00Z"

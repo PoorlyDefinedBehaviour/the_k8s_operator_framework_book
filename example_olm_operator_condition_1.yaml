@@ -1,0 +1,12 @@
+apiVersion: operators.coreos.com/v1
+kind: OperatorCondition
+metadata:
+  name: sample-operator
+  namespace: operator-ns
+status:
+  conditions:
+    - type: Upgradeable
+      status: False
+      reason: "OperatorBusy"
+      message: "Operator is currently busy with a critical task"
+      lastTransitionTime: "2022-01-19T12:00:00Z"

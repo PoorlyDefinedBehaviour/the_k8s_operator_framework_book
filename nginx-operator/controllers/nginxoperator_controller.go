@@ -85,11 +85,13 @@ func (r *NginxOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			*operatorCustomResource.Spec.Port
 	}
 
-	ctrl.CreateOrUpdate(ctx, r.Client, deployment, func() error {
+	result, err := ctrl.CreateOrUpdate(ctx, r.Client, deployment, func() error {
 		return ctrl.SetControllerReference(&operatorCustomResource, deployment, r.Scheme)
 	})
 
-	return ctrl.Result{}, nil
+	logger.Info("controller create or updated", "result", result)
+
+	return ctrl.Result{}, err
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -33,6 +33,7 @@ import (
 
 	operatorv1alpha1 "github.com/example/nginx-operator/api/v1alpha1"
 	"github.com/example/nginx-operator/assets"
+	"github.com/example/nginx-operator/controllers/metrics"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
@@ -61,6 +62,8 @@ type NginxOperatorReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
 func (r *NginxOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	metrics.ReconcilesTotal.Inc()
+
 	logger := log.FromContext(ctx)
 
 	condition, err := conditions.InClusterFactory{Client: r.Client}.

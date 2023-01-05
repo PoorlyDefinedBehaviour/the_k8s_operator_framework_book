@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 
@@ -33,6 +34,7 @@ import (
 
 	operatorv1alpha1 "github.com/example/nginx-operator/api/v1alpha1"
 	"github.com/example/nginx-operator/controllers"
+	"github.com/operator-framework/operator-lib/leader"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -64,6 +66,13 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	if !enableLeaderElection {
+		if err := leader.Become(context.Background(), "nginx-lock"); err != nil {
+			setupLog.Error(err, "unable to acquire leader lock")
+			os.Exit(1)
+		}
+	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
